@@ -155,13 +155,13 @@ function ConfSudoers(){
 	echo "nagios ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 }
 function CopyScripts(){
-	echo "Installation des scripts wazo/xivo" >> logs
-	cd /tmp/ScriptWazoXivoDeploiement ||  exit 1
+	echo "Installation des scripts wazo payant" >> logs
+	cd /tmp/ScriptWazoPayantDeploiement ||  exit 1
 	cp commandnrpe/command_nrpe.cfg /usr/local/nagios/etc/command_nrpe.cfg
 	cp base/nagisk.pl /usr/local/nagios/libexec/nagisk.pl
-	cp base/check_services_wazo_xivo.pl /usr/local/nagios/libexec/check_services_wazo_xivo.pl
-	cp base/checkversionwazoxivo.sh /usr/local/nagios/libexec/checkversionwazoxivo.sh
-	cp base/checkuptimewazoxivo.sh /usr/local/nagios/libexec/checkuptimewazoxivo.sh
+	cp base/check_services_wazo.pl /usr/local/nagios/libexec/check_services_wazo.pl
+	cp base/checkversionwazo.sh /usr/local/nagios/libexec/checkversionwazo.sh
+	cp base/checkuptimewazo.sh /usr/local/nagios/libexec/checkuptimewazo.sh
 	cd /usr/local/nagios ||  exit 1
 	chmod -R 755 libexec/
 }
