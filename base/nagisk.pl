@@ -1,16 +1,5 @@
 #!/usr/bin/perl -w
-#
-# Nagisk
-# Nagios take a look on Asterisk
-# Nicolas Hennion - GPLv3
-#
-# Modified by :
-# Frederic (03/2011)
-# ManuxFR (11/2011)
-# manuel@linux-home.at (8/2012)[dahdi,pri checks added]
-# Xavier Lemaire <xavier@amassi-network.com> (19/04/2013)
-# Pierre-Alexandre Caquineau (12/05/2015) [Multi Trunk Sip Registrations]
-# Pierre-Alexandre Caquineau (25/01/2016) [Nb active calls]
+
 #------------------------------------------------------------------------------
 use Getopt::Std;
 use strict;
@@ -23,25 +12,13 @@ use strict;
 my $asterisk_bin                = "/usr/bin/sudo asterisk";
 my $asterisk_option             = "-rx";
 my $asterisk_command_version    = "core show version";
-my $asterisk_command_peers      = "sip show peers";
-my $asterisk_command_peer       = "sip show peer";
-my $asterisk_command_konference = "konference show stats";
-my $asterisk_command_jabber     = "jabber show connected";
 my $asterisk_command_channels   = "core show channels";
-my $asterisk_command_zaptel     = "zap show status";
-my $asterisk_command_span       = "zap show status";
-my $asterisk_command_dahdi      = "dahdi show status";
-my $asterisk_command_dahdi_span = "dahdi show status";
-my $asterisk_command_pri_spans  = "pri show spans";
-my $asterisk_command_pri_span   = "pri show span";
+my $asterisk_command_registry   = "pjsip show registrations";
 my $asterisk_span_number        = 1;
-my $asterisk_peer_name          = "Il ne sert a rien";
 my $asterisk_buddy_name         = "asterisk";
 my $asterisk_warn_treshold      = "1000";
 my $asterisk_crit_treshold      = "2000";
-my $asterisk_command_registry   = "sip show registry";
-my $asterisk_command_calls      = "core show calls";
-my $asterisk_command_failover   = "failover show";
+
 
 #------------------------------------------------------------------------------
 # Options: Can NOT be changed
@@ -51,24 +28,6 @@ my $asterisk_command_failover   = "failover show";
 my $version = "1.2.9";
 
 use vars qw( %opts);
-
-#------------------------- Return Codes Definitions --------------------------
-# STATE = OK:
-# The plugin was able to check the service and it appeared to be functioning
-# properly.
-#
-# STATE = WARNING:
-# The plugin was able to check the service, but it appeared to be above
-# some "warning" threshold or did not appear to be working properly.
-#
-# STATE = CRITICAL:
-# The plugin detected that either the service was not running or it was above
-# some "critical" threshold.
-#
-# STATE = UNKNOWN:
-# Invalid command line arguments were supplied to the plugin or low-level
-# failures internal to the plugin.
-#------------------------------------------------------------------------------
 
 my $STA_OK       = 0;
 my $STA_WARNING  = 1;
@@ -88,35 +47,6 @@ my $output = "";
 # Functions
 #------------------------------------------------------------------------------
 
-sub printsyntax() {
-        print(  "Syntax:\t $0 [-hv] [-c OPT] [-s NB|-p NAME|-b BUDDY] [-w TRESH -x TRESH]\n"
-                  . "-c version: Display the Asterisk version\n"
-                  . "-c peers: Display the SIP peers status\n"
-                  . "-c peer: Display the status of a particular peer\n"
-                  . "-c channels: Display the channels status\n"
-                  . "-c konference: Display nb of active conferences\n"
-                  . "-c calls: Display nb of active calls\n"
-                  . "-c jabber: Display a jabber buddy status\n"
-                  . "-c zaptel: Display the status of the zaptel card\n"
-                  . "-c span: Display the status of a specific span (set with -s option)\n"
-                  . "-c dahdi: Display the status of the dahdi card\n"
-                  . "-c dahdi_span: Display the status from a span from the dahdi card\n"
-                  . "-c pri_spans: Display the status of the pri spans\n"
-                  . "-c pri_span: Display the status of a specific pri span (set with -s option)\n"
-                  . "-c registry: Display the Hosts and the Registry\n"
-                  . "-c failover: Display the failover device status\n"
-                  . "-s <span number>: Set the span number (default is 1)\n"
-                  . "-p <peer name>\n"
-                  . "-b <buddy name>\n"
-                  . "-w <warning treshold>\n"
-                  . "-x <critical treshold>\n"
-                  . "-h Display the help and exit\n"
-                  . "-v Display version and exit\n");
-}
-
-sub printversion() {
-        print("$0 $version \n");
-}
 
 sub checkAlert() {
         my ($value, $treshold) = @_;
@@ -313,240 +243,14 @@ if ($asterisk_command_tag eq "channels") {
 # --- PEERS ---
 # Output example: "2 sip peers [Monitored: 1 online, 0 offline Unmonitored: 0 online, 1 offline]"
 #
-} elsif ($asterisk_command_tag eq "peers") {
-
-        $return = $STA_CRITICAL;
-        $output = "Error getting peers";
-
-        foreach (`$asterisk_bin $asterisk_option \"$asterisk_command\"`) {
-
-                if (/sip\ peers/) {
-                        $output = $_;
-                }
-        }
-
-        # Raise alert based on number of Monitored Online peers
-        $return = &setAlert($1, $asterisk_warn_treshold, $asterisk_crit_treshold)
-          if ($output =~ /Monitored: ([0-9]+)\ online/);
-
-# --- PEER ---
-# Output example: "myowntelco: OK (15 ms)"
-#
-} elsif ($asterisk_command_tag eq "peer") {
-
-        $return = $STA_CRITICAL;
-        $output = "Error getting peer or unreachable: $asterisk_peer_name";
-
-        foreach (`$asterisk_bin $asterisk_option \"$asterisk_command $asterisk_peer_name\"`) {
-                if (/Status.*:(.*)/) {
-                        $output = "$asterisk_peer_name: $1";
-                }
-        }
-
-        # Raise alert based on number of milliseconds
-        $return = &setAlert($1, $asterisk_warn_treshold, $asterisk_crit_treshold)
-          if ($output =~ /([0-9]+)\ ms/);
-
-# --- JABBER ---
-# Output example: "Buddy: freddy (Connected)"
-#
-} elsif ($asterisk_command_tag eq "jabber") {
-
-        $return = $STA_CRITICAL;
-        $output = "Error getting buddy status: $asterisk_buddy_name";
-
-        foreach (`$asterisk_bin $asterisk_option \"$asterisk_command $asterisk_buddy_name\"`) {
-                if (/User.*:\ +$asterisk_buddy_name\@.*\-\ +(Connected|Disconnected|Connecting)/) {
-                        $output = "Buddy: $asterisk_buddy_name ($1)";
-                }
-        }
-
-        # Raise alert based on buddy status
-        $return = $STA_CRITICAL if ($output =~ /Buddy:.*Disconnected/);
-        $return = $STA_WARNING  if ($output =~ /Buddy:.*Connecting/);
-        $return = $STA_OK       if ($output =~ /Buddy:.*Connected/);
-
-# --- KONFERENCE ---
-# Output example: "Active konferences: 5"
-#
-} elsif ($asterisk_command_tag eq "konference") {
-
-        $return = $STA_WARNING;
-        $output = "Error getting active conferences";
-
-        foreach (`$asterisk_bin $asterisk_option \"$asterisk_command\"`) {
-                if (/ACTIVE *\( *([0-9]+) *\)/) {
-                        $output = "Active konferences: $1";
-                }
-        }
-
-        # Raise alert based on number of active conferences
-        $return = &setAlert($1, $asterisk_warn_treshold, $asterisk_crit_treshold)
-          if ($output =~ /Active konferences: ([0-9]+)/);
-
-# --- ZAPTEL ---
-# Output example:
-#
-} elsif ($asterisk_command_tag eq "zaptel") {
-
-        foreach (`$asterisk_bin $asterisk_option \"$asterisk_command\"`) {
-                if (/Description/) {
-                        $return = $STA_OK;
-                        $output = "Zaptel card detected\n";
-                        last;
-                }
-                if (/No\ such\ command/) {
-                        $return = $STA_CRITICAL;
-                        $output = "Zaptel card not detected\n";
-                        last;
-                }
-        }
-
-# --- DAHDI ---
-# Output example: (./nagisk.pl -c dahdi -s 3)
-# B4XXP (PCI) Card 0 Span 1                RED     0      0      0      CCS AMI  YEL      0 db (CSU)/0-133 feet (DSX-1)
-# B4XXP (PCI) Card 0 Span 2                RED     0      0      0      CCS AMI  YEL      0 db (CSU)/0-133 feet (DSX-1)
-# B4XXP (PCI) Card 0 Span 3                OK      0      0      0      CCS AMI  YEL      0 db (CSU)/0-133 feet (DSX-1)
-# B4XXP (PCI) Card 0 Span 4                RED     0      0      0      CCS AMI  YEL      0 db (CSU)/0-133 feet (DSX-1)
-#
-} elsif ($asterisk_command_tag eq "dahdi") {
-
-        foreach (`$asterisk_bin $asterisk_option \"$asterisk_command\"`) {
-                if (/Card/) {
-                        $return = $STA_OK;
-                        $output .= "$_\n";
-                }
-                if (/No\ such\ command/) {
-                        $return = $STA_CRITICAL;
-                        $output = "Error getting Dahdi status (dahdi show status), is a dahdi card connected?\n";
-                        last;
-                }
-        }
-
-# --- DAHDI SPAN ---
-# Output example: (./nagisk.pl -c dahdi -s 3)
-# B4XXP (PCI) Card 0 Span 3                OK      0      0      0      CCS AMI  YEL      0 db (CSU)/0-133 feet (DSX-1)
-#
-} elsif ($asterisk_command_tag eq "dahdi_span") {
-
-        foreach (`$asterisk_bin $asterisk_option \"$asterisk_command\" | grep \"Span $asterisk_span_number\"`) {
-
-                if (/OK/) {
-                        $return = $STA_OK;
-                        $output = "$_\n";
-                        last;
-                }
-                if (/RED/) {
-                        $return = $STA_CRITICAL;
-                        $output = "$_\n";
-                        last;
-                }
-                if (/No\ such\ command/) {
-                        $return = $STA_CRITICAL;
-                        $output = "Error getting Dahdi status (dahdi show status), is a dahdi card connected?\n";
-                        last;
-                }
-
-                $return = $STA_CRITICAL;
-                $output = "Dahdi Span not found! (try \"dahdi show status\" in asterisk CLI.\n";
-                last;
-        }
-
-
-
-# --- SPAN ---
-# Output example:
-#
-} elsif ($asterisk_command_tag eq "span") {
-        my $span = 0;
-        foreach (`$asterisk_bin $asterisk_option \"$asterisk_command\"`) {
-                if (/Description/) {
-                        $span = 1;
-                        next;
-                }
-                if (/No\ such\ command/) {
-                        $return = $STA_CRITICAL;
-                        $output = "Zaptel card not detected\n";
-                        last;
-                }
-                if ($span == $asterisk_span_number) {
-                        if (/OK/) {
-                                $return = $STA_OK;
-                                $output = "Span $asterisk_span_number OK\n";
-                        } else {
-                                $return = $STA_CRITICAL;
-                                $output = "Span $asterisk_span_number not ok\n";
-                        }
-                        last;
-                }
-                $span++;
-        }
-        if ($span > $asterisk_span_number) {
-                $return = 1;
-                $output = "Span $asterisk_span_number did not exist\n";
-        }
-
-# --- PRI SPANS ---
-# Output example: (./nagisk.pl -c pri_spans)
-# PRI span 1/0: Provisioned, In Alarm, Down, Active
-# PRI span 2/0: Provisioned, In Alarm, Down, Active
-# PRI span 3/0: Provisioned, Up, Active
-# PRI span 4/0: Provisioned, In Alarm, Down, Active
-#
-} elsif ($asterisk_command_tag eq "pri_spans") {
-        foreach (`$asterisk_bin $asterisk_option \"$asterisk_command\"`) {
-                if (/PRI/) {
-                        $return = $STA_OK;
-                        $output .= "$_\n";
-                }
-                if (/No\ such\ command/) {
-                        $return = $STA_CRITICAL;
-                        $output = "LibPRI not found!\n";
-                        last;
-                }
-        }
-
-# --- PRI SPAN ---
-# Output example: (./nagisk.pl -c pri_span -s 3)
-# Status: Provisioned, Up, Active
-#
-} elsif ($asterisk_command_tag eq "pri_span") {
-        foreach (`$asterisk_bin $asterisk_option \"$asterisk_command $asterisk_span_number\"`) {
-
-                #$output .= "$_\n";
-
-                if (/Up/) {
-                        $return = $STA_OK;
-                        $output = "$_\n";
-                        last;
-                }
-                if (/Down/) {
-                        $return = $STA_CRITICAL;
-                        $output = "$_\n";
-                        last;
-                }
-                if (/No\ such\ command/) {
-                        $return = $STA_CRITICAL;
-                        $output = "LibPRI not found!\n";
-                        last;
-                }
-        }
-
-# --- REGISTRY ---
-# Output example: (./nagisk.pl -c registry -p username)
-#       Host                                    dnsmgr Username       Refresh State
-#       Trunk_SIP_Peer:5060                      N      username       105 Registered
-#       1 SIP registrations.
-#
 } elsif ($asterisk_command_tag eq "registry") {
     my $found=0;
     my $outputregistry = "";
     my $outputregistrydown = "";
     my $outputregistryup = "";
-    my @arraynoms = (`$asterisk_bin $asterisk_option \"$asterisk_command\" | awk '{print \$1}' | sed '1d' | sed '\$d' | awk '{ print \$1}'`);
-    my @arraystatus = (`$asterisk_bin $asterisk_option \"$asterisk_command\" | awk '{print \$5}' | sed '1d' | sed '\$d' | awk '{ print \$1}'`);
-    my $statusgeneral = (`$asterisk_bin $asterisk_option \"$asterisk_command\" | awk '{print \$5}' | sed '1d' | sed '\$d' | awk '{ print \$1}' | grep -v "Registered"`);
-    my $longueurstatusgeneral = length($statusgeneral);
+    my @arraynoms = (`$asterisk_bin $asterisk_option \"$asterisk_command\" | sed '1,4d' | sed '/^\$/d' | sed '\$d' | awk '{print \$2}'`);
+    my @arraystatus = (`$asterisk_bin $asterisk_option \"$asterisk_command\" | sed '1,4d' | sed '/^\$/d' | sed '\$d' | awk '{print \$3}'`);
+    my $longueurstatusgeneral = (`$asterisk_bin $asterisk_option \"$asterisk_command\" | sed '1,4d' | sed '/^\$/d' | sed '\$d' | awk '{print \$3}' | grep -v "Registered" | wc -l`);
     my $longueur = scalar(@arraynoms);
 
         #my @noms = ('10.235.63.21:5060', 'trunkfsc3.sewan.fr:5070');
@@ -617,21 +321,7 @@ if ($asterisk_command_tag eq "channels") {
 # Output example: (./nagisk.pl -c failover)
 # * DEVICE#1: openvox_failover_1 /dev/ttyUSB0 VERSION:1.5
 #   INTERNAL:4000 EVENT: AUTORUN:no STATE:RUNNING
-} elsif ($asterisk_command_tag eq "failover") {
-
-        foreach (`$asterisk_bin $asterisk_option \"$asterisk_command\"`) {
-                if (/STATE:RUNNING/) {
-                        $return = $STA_OK;
-                        $output = "$_\n";
-                } elsif (/STATE:STOPPED/) {
-                        $return = $STA_CRITICAL;
-                        $output = "Failover currently stopped\n";
-                } elsif (/No\ such\ command/) {
-                        $return = $STA_CRITICAL;
-                        $output = "Error checking failover status, is failover installed?\n";
-                }
-        }
-}
+} 
 
 # --- Print the command output on STDOUT
 $output =~ s/\r|\n/\ /g;
