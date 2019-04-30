@@ -252,10 +252,7 @@ if ($asterisk_command_tag eq "channels") {
     my @arraystatus = (`$asterisk_bin $asterisk_option \"$asterisk_command\" | sed '1,4d' | sed '/^\$/d' | sed '\$d' | awk '{print \$3}'`);
     my $longueurstatusgeneral = (`$asterisk_bin $asterisk_option \"$asterisk_command\" | sed '1,4d' | sed '/^\$/d' | sed '\$d' | awk '{print \$3}' | grep -v "Registered" | wc -l`);
     my $longueur = scalar(@arraynoms);
-
-        #my @noms = ('10.235.63.21:5060', 'trunkfsc3.sewan.fr:5070');
        
-        
         my @tableau;
         my $nom = '';
         my $status = '';        
