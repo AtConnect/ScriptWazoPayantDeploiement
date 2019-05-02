@@ -18,8 +18,8 @@ apt-get update && apt-get install git-core -y && apt-get install curl -y
 cd /tmp
 git clone https://github.com/AtConnect/ScriptWazoPayantDeploiement
 cd ScriptWazoPayantDeploiement
-chmod a+x lancercescriptsurwazo.sh
-./lancercescriptsurwazo.sh
+chmod a+x lancercescriptsurwazopayant.sh
+./lancercescriptsurwazopayant.sh
 ```
 
 
