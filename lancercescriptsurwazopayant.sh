@@ -162,6 +162,7 @@ function CopyScripts(){
 	cp base/check_services_wazo.pl /usr/local/nagios/libexec/check_services_wazo.pl
 	cp base/checkversionwazo.sh /usr/local/nagios/libexec/checkversionwazo.sh
 	cp base/checkuptimewazo.sh /usr/local/nagios/libexec/checkuptimewazo.sh
+	cp base/check_stuck_channels.pl /usr/local/nagios/libexec/check_stuck_channels.pl
 	cd /usr/local/nagios ||  exit 1
 	chmod -R 755 libexec/
 }
