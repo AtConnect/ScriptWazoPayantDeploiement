@@ -2,6 +2,62 @@
 
 set -e -o pipefail
 
+
+function check_ip()
+{    
+    if [[ $1 =~ ^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$ ]]; then    
+    result=true
+    else
+    result=false
+    fi
+}
+
+function menuip()
+{
+echo "Please choose the location where you want to install"
+echo "1 -> Central Centreon "
+echo "2 -> Adapei Poller "
+echo "3 -> ATC Poller "
+echo "4 -> Lisa2 Poller "
+echo "5 -> Another Poller ?"
+read -p "Enter your answer : "  rep
+case $rep in
+1 )
+ip="195.135.72.13"
+echo "The selected server is Central Centron" 
+echo "The authorized ip address is 195.135.72.13"
+;;
+2 )
+ip="195.135.27.61"
+echo "The selected server is Adapei Poller" 
+echo "The authorized ip address is 195.135.27.61"
+;;
+3 )
+ip="195.135.40.134"
+echo "The selected server is ATC Poller" 
+echo "The authorized ip address is 195.135.40.134"
+;;
+4 )
+ip="65.39.76.144"
+echo "The selected server is Lisa2 Poller " 
+echo "The authorized ip address is 65.39.76.144"
+;;
+5 )
+read -p "Enter the ip address if the server : "  ip
+if [[ -n $ip ]]; then
+  check_ip $ip
+fi
+if [[ $result != "true" ]]; then
+  echo "It's time to know the syntax of an IP..."
+  exit 1
+fi
+echo "The authorized ip address is " $ip
+;;
+*)    echo "Read the Fucking Manual !"
+esac
+}
+menuip
+
 #Update of the system only if update has been run without problem
 clear
 VERSION=$(cat /etc/debian_version)
@@ -158,6 +214,7 @@ function CopyScripts(){
 	echo "Installation des scripts wazo payant" >> logs
 	cd /tmp/ScriptWazoPayantDeploiement ||  exit 1
 	cp commandnrpe/command_nrpe.cfg /usr/local/nagios/etc/command_nrpe.cfg
+	sed -i -r "s/.*allowed_hosts.*/allowed_hosts=127.0.0.1,::1,${ip}/g" /usr/local/nagios/etc/nrpe.cfg
 	cp base/nagisk.pl /usr/local/nagios/libexec/nagisk.pl
 	cp base/check_services_wazo.pl /usr/local/nagios/libexec/check_services_wazo.pl
 	cp base/checkversionwazo.sh /usr/local/nagios/libexec/checkversionwazo.sh
